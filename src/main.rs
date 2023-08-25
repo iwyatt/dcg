@@ -326,7 +326,7 @@ fn player_action_chant(player: &mut Character, npc: &mut Character){
     if mantra_chance <= (player.wis + player.int) / 2 {
         match mantra_chance{
             20 => {println!("BY FIRE BE PURGED!"); npc.hp_current = 0},
-            19 => {println!("BE BORN AGAIN!"); player.hp_current = player.hp_max},
+            19 => {println!("BE BORN AGAIN!"); player.hp_current = player.hp_max; player.mp_current = player.mp_max;},
             18 => {println!("I SHALL SMITE THINE ENEMIES!"); npc.hp_current = npc.hp_current / 2},
             17 => {println!("BE HEALED!"); player.hp_current = cmp::min(player.hp_max,player.hp_current + (player.hp_max / 2))},
             16 => {println!("BE REJUVINATED!"); player.mp_current = player.mp_max},
