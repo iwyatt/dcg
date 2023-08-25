@@ -253,6 +253,8 @@ fn player_turn(player: &mut Character, npc: &mut Character) {
     println!("Command?");
     println!("q - melee attack | e - ranged attack");
     println!("z - use health pot | c - use mana pot");
+	println!("r - chant mantra");
+	
     io::stdin()
         .read_line(&mut player_input)
         .expect("Failed to read line");
