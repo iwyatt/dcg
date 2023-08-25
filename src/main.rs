@@ -280,7 +280,7 @@ fn player_turn(player: &mut Character, npc: &mut Character) {
         "2" | "p" => player_action_talk(&player, &npc),
         "4" | "q" => player_action_attack_melee(player, npc),
         "5" | "e" => player_action_attack_ranged(player, npc),
-        // "6" | "r" => player_action_use_item(player,npc),
+        "6" | "r" => player_action_chant(player, npc),
         "7" | "z" => use_health_potion(player),
         _ => println!("3"),
     }
@@ -323,13 +323,14 @@ fn player_action_chant(player: &mut Character, npc: &mut Character){
     // TODO: mantra effects
     if mantra_chance <= (player.wis + player.int) / 2 {
         match mantra_chance{
-            20 => npc.hp_current = 0,
-            19 => player.hp_current = player.hp_max,
-            18 => npc.hp_current = npc.hp_current / 2,
-            17 => player.hp_current = cmp::min(player.hp_max,player.hp_current + (player.hp_max / 2)),
-            16 => player.mp_current = player.mp_max,
-            15 => player.mp_current = cmp::min(player.mp_max, player.mp_current + (player.mp_max /2 )),
-            
+            20 => {println!("BY FIRE BE PURGED!"); npc.hp_current = 0},
+            19 => {println!("BE BORN AGAIN!"); player.hp_current = player.hp_max},
+            18 => {println!("I SHALL SMITE THINE ENEMIES!"); npc.hp_current = npc.hp_current / 2},
+            17 => {println!("BE HEALED!"); player.hp_current = cmp::min(player.hp_max,player.hp_current + (player.hp_max / 2))},
+            16 => {println!("BE REJUVINATED!"); player.mp_current = player.mp_max},
+            15 => {println!("BE AT PEACE!"); player.mp_current = cmp::min(player.mp_max, player.mp_current + (player.mp_max /2 ))},
+            //6 - 14 - do other stuff / buffs
+            5 => println!("You have a renewed sense of confdence,"),
             4 => println!("You have a sense of peace"),
             3 => println!("You have a sense of calm."),
             2 => println!("You complete the recitation of the mantra."),
