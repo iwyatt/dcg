@@ -191,18 +191,21 @@ fn npc_encounter(player: &mut Character){
 }
 
 fn clear_screen(player: &Character){
+	println!("");
     println!("------------------------");
     println!("HP: {} / {} | MP: {} / {}", player.hp_current, player.hp_max, player.mp_current, player.mp_max);
     println!("Inventory Space: (current) / {} | Encumberence : (current) / {}", player.capacity_volume, player.capacity_weight);
     println!("STR: {} | DEX: {} | CON: {} | INT: {} | WIS: {} | CHA: {}", player.str, player.dex, player.con, player.int, player.wis, player.cha);
     println!("------------------------");
-
+	println!("");
+	
     // print inventory
     println!("~~Inventory~~");
     for item in &player.inventory{
         println!("{}", item.item_name); // TODO: need to print quantity of each item in inventory
     };
     println!("~~~~~~~~~~~~~");
+    println!("");
 }
 
 fn resolve_encounter(player: &mut Character, npc: &mut Character, npc_encounter: &mut NpcEncounter){
@@ -226,7 +229,7 @@ fn npc_turn(player: &mut Character, npc: &mut Character) {
         "3" => println!("npc attempts to evade!"),
         "4" => npc_action_attack_melee(player, npc),
         "5" => npc_action_attack_ranged(player, npc),
-        "6" => println!("npc chants/prays"),
+        "6" => player_action_chant(npc, chant),
         "7" => use_health_potion(npc),
         "8" => println!("npc quaffs a mana potion"),
         "9" => println!("npc uses an item!"),
