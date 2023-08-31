@@ -25,16 +25,25 @@
 use std::char;
 use std::io;
 use std::cmp;
-use chrono::prelude::*; // NOTE: Uses sverd library whose authors want to only distribute pre-compiled binaries
+
+// NOTE: Uses sverd library whose authors want to only distribute pre-compiled binaries
 use rand::Rng;
 use sha256::digest;
 
+//load dcg modules
+mod inventory;
+use inventory::*;
+
+mod actors;
+use actors::*;
 
 // program start
 fn main() {
+
      // # clear the terminal but maybe only in linux
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-    
+
+    //create player
     // # Player Creation
     println!("Enter the name of the Chosen.");
 
@@ -45,72 +54,24 @@ fn main() {
         .expect("Failed to read line");
 
     name = String::from(name.trim());
-
-    // ## create the player's deity by getting the current system month
-    // This will also determine the character's deity.
-    let deity_index =  chrono::offset::Local::now().month();
-
-    // salt the character name with the deityIndex and get the sha256 hash
-    // the sha256 will determine the character's stats
-    let digest_message = format!("{}{}",deity_index,name);
-    let seed = digest(digest_message);
+    let mut player = actors::create_player(name);
     
-    // ## create the player's character
-    let mut player = Character{ 
-        name: String::from(&name),
-        // TODO: add deity index, create struct with name of deity, and passive buff
-        hp_current: 1,
-        hp_max: 1,
-        mp_current: 1,
-        mp_max: 1,
-        char_type: CharType::Player,
-        capacity_volume: 1,
-        capacity_weight: 1,
-        inventory: vec![],
-        
-        // uses the sha256 hash to convert hexidecimal to int with range o to 16, then
-        // .. adds 3 to provide 3 to 18 range
-        str: get_int_from_seed(&seed, 0)+3,
-        dex: get_int_from_seed(&seed, 1)+3,
-        con: get_int_from_seed(&seed, 2)+3,
-        int: get_int_from_seed(&seed, 3)+3,
-        wis: get_int_from_seed(&seed, 4)+3,
-        cha: get_int_from_seed(&seed, 5)+3,       
-    };
-
-    // ## set initial hp/mp values
-    player.hp_current = player.con;
-    player.hp_max = player.con;
-    player.mp_current = cmp::max(player.wis, player.int);
-    player.mp_max = cmp::max(player.wis, player.int);
-
-    // ## set inventory capacity and initial items
-    player.capacity_volume = player.con;
-    player.capacity_weight = player.str;
-
-    player = add_health_potion(player);
-
-    // # Respond to the Chosen.
-    println!("Very well, {}!", player.name);
-
     // # print character attributes
     clear_screen(&player);
 
     // # NPC Encounter
-    npc_encounter(&mut player);
-
-}
-
-// function to convert char from sha256 hash to int for use in player stats
-fn get_int_from_seed(seed: &String, input: usize) -> i64{
-    let hex_char = seed.chars().nth(input).unwrap().to_string(); // UNWRAP UNWRAP!
-    let i = i64::from_str_radix(& hex_char, 16).unwrap();
-    return i;
+    let mut kills = 0;
+    while player.hp_current > 0 {
+        println!("KILLS: {}",kills.to_string());
+        npc_encounter(&mut player);
+        kills = kills + 1;
+    }
 }
 
 // # NPC Encounter
 fn npc_encounter(player: &mut Character){
     // Initialize The Fight
+
     // ## create an enemy to fight
     let mut npc = Character{
         name: String::from("Big Bad Scary Monster"),
@@ -127,7 +88,7 @@ fn npc_encounter(player: &mut Character){
         cha: rand::thread_rng().gen_range(1..=16) +2,
         capacity_volume: 1,
         capacity_weight: 1,
-        inventory: vec![],
+        inventory: Inventory {items: vec![InventoryItem { name: String::from("Health Potion"), weight: 1, weapon: None, armor: None }]}
     };
 
     // ### set initial hp/mp values
@@ -197,15 +158,18 @@ fn clear_screen(player: &Character){
     println!("Inventory Space: (current) / {} | Encumberence : (current) / {}", player.capacity_volume, player.capacity_weight);
     println!("STR: {} | DEX: {} | CON: {} | INT: {} | WIS: {} | CHA: {}", player.str, player.dex, player.con, player.int, player.wis, player.cha);
     println!("------------------------");
-	println!("");
-	
-    // print inventory
-    println!("~~Inventory~~");
-    for item in &player.inventory{
-        println!("{}", item.item_name); // TODO: need to print quantity of each item in inventory
-    };
-    println!("~~~~~~~~~~~~~");
-    println!("");
+
+    println!("~ ~ ~ ~INVENTORY~ ~ ~ ~");
+    if player.inventory.items.len() <= 0 {
+        println!(" NO INVENTORY !");
+    }
+
+    else {
+        for i in player.inventory.items.iter(){
+            println!("{}",i.name);
+        };
+        println!("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
+    }
 }
 
 fn resolve_encounter(player: &mut Character, npc: &mut Character, npc_encounter: &mut NpcEncounter){
@@ -224,16 +188,16 @@ fn npc_turn(player: &mut Character, npc: &mut Character) {
     // maybe swap this out for more intelligent ai at some point
     let npc_action = rand::thread_rng().gen_range(4..=7); //update RNG range as I add functionality
     match npc_action.to_string().as_str() {
-        "1" => println!("npc defends!"),
-        "2" => println!("npc requests to parlay"),
-        "3" => println!("npc attempts to evade!"),
+        //"1" => println!("npc defends!"),
+        //"2" => println!("npc requests to parlay"),
+        //"3" => println!("npc attempts to evade!"),
         "4" => npc_action_attack_melee(player, npc),
         "5" => npc_action_attack_ranged(player, npc),
-        "6" => player_action_chant(npc, chant),
-        "7" => use_health_potion(npc),
-        "8" => println!("npc quaffs a mana potion"),
-        "9" => println!("npc uses an item!"),
-        "0" | _ => println!("no action"),
+        "6" => player_action_chant(npc, player),
+        //"7" => 
+        "7" | "z" => Inventory::use_consumable(npc, &String::from("Health Potion")),
+        "8" | "c" => Inventory::use_consumable(npc, &String::from("Mana Potion")),
+        "0" | _ => println!("{} does nothing.",npc.name),
     }
 }
 
@@ -258,6 +222,7 @@ fn player_turn(player: &mut Character, npc: &mut Character) {
     println!("z - use health pot | c - use mana pot");
 	println!("r - chant mantra");
 	
+    // get input
     io::stdin()
         .read_line(&mut player_input)
         .expect("Failed to read line");
@@ -273,7 +238,7 @@ fn player_turn(player: &mut Character, npc: &mut Character) {
     // "3" | "v" evade
     // "4" | "q" attack melee
     // "5" | "e" attack ranged
-    // "6" | "r" chant spell / prayer
+    // "6" | "r" chant mantra
     // "7" | "z" quaff healing potion
     // "8" | "c" quaff mana potion
     // "9" | "f" use item
@@ -286,7 +251,8 @@ fn player_turn(player: &mut Character, npc: &mut Character) {
         "4" | "q" => player_action_attack_melee(player, npc),
         "5" | "e" => player_action_attack_ranged(player, npc),
         "6" | "r" => player_action_chant(player, npc),
-        "7" | "z" => use_health_potion(player),
+        "7" | "z" => Inventory::use_consumable(player, &String::from("Health Potion")),
+        "8" | "c" => Inventory::use_consumable(player, &String::from("Mana Potion")),
         _ => println!("3"),
     }
 }
@@ -323,9 +289,9 @@ fn player_action_chant(player: &mut Character, npc: &mut Character){
     
     println!("{} chants <deity>'s mantra", player.name);
 
-    let mantra_chance = rand::thread_rng().gen_range(1..=18);
+    let mantra_chance = rand::thread_rng().gen_range(1..=18); //TODO: plus bonus for mantra book equipped
 
-    // TODO: mantra effects
+    // TODO: mantra effects and mana cost
     if mantra_chance <= (player.wis + player.int) / 2 {
         match mantra_chance{
             20 => {println!("BY FIRE BE PURGED!"); npc.hp_current = 0},
@@ -334,7 +300,7 @@ fn player_action_chant(player: &mut Character, npc: &mut Character){
             17 => {println!("BE HEALED!"); player.hp_current = cmp::min(player.hp_max,player.hp_current + (player.hp_max / 2))},
             16 => {println!("BE REJUVINATED!"); player.mp_current = player.mp_max},
             15 => {println!("BE AT PEACE!"); player.mp_current = cmp::min(player.mp_max, player.mp_current + (player.mp_max /2 ))},
-            //6 - 14 - do other stuff / buffs
+            //6 - 14 - do other stuff / buffs TODO: Implement after buff system implemented
             5 => println!("You have a renewed sense of confdence,"),
             4 => println!("You have a sense of peace"),
             3 => println!("You have a sense of calm."),
@@ -343,92 +309,11 @@ fn player_action_chant(player: &mut Character, npc: &mut Character){
             _ => println!("stuff happens")
         }
     }
-
-}
-
-// ## NPC Turn
-
-// # structs
-
-// ## Define Inventory Objects (items, environment objects)
-
-// ### Health Potions
-// #### Add Health Potion to Inventory
-fn add_health_potion(mut character: Character) -> Character{
-    // define health potion object
-    let item = InventoryObject{
-        item_name: String::from("Health Potion"),
-        item_weight: 1.0,
-        item_volume: 1.0,
-        item_type: InventoryItemType::HealthPotion,
-    };
-
-    //add health potion to inventory vector
-    character.inventory.push(item);
-    return character;
-}
-
-// #### Use Health Potion
-fn use_health_potion(target: &mut Character){
-    // Check if inventory has health potion available
-    if target.inventory.iter().position(|item| item.item_type == InventoryItemType::HealthPotion) == None {
-        println!("No Health Potion Available!");
-    }
     else {
-        // boost player's health ny the average of their str and con
-        target.hp_current = cmp::min(target.hp_current + ((target.str + target.con)/2), target.hp_max);
-        
-        println!("*GULP*! Health Potion Consumed!");
-
-        // remove health potion from inventory
-        let inventory_potion_index = target.inventory.iter().position(|item| item.item_type == InventoryItemType::HealthPotion).unwrap();
-        target.inventory.remove(inventory_potion_index);
+        println!("Mantra was interrupted.");
     }
 }
 
-// define inventory object struct
-struct InventoryObject{
-    item_name: String,
-    item_weight: f64,
-    item_volume: f64,
-    item_type: InventoryItemType,
-}
-
-// define inventory object types
-#[derive(PartialEq)]
-enum InventoryItemType{
-    HealthPotion,
-    ManaPotion,
-    WeaponMelee,
-    WeaponRanged,
-    WeaponSpell,
-    WeaponChant,
-    Armor,
-}
-
-// Define Player, NPCS (enemies and friendlies), Objects, and respective enums
-struct Character{
-    name: String,
-    char_type: CharType,
-    hp_current: i64,
-    hp_max: i64,
-    mp_current: i64,
-    mp_max: i64,
-    str: i64,
-    dex: i64,
-    con: i64,
-    int: i64,
-    wis: i64,
-    cha: i64,
-    capacity_weight: i64,
-    capacity_volume: i64,
-    inventory: Vec<InventoryObject>
-}
-
-enum CharType{
-    Player,
-    Npc,
-}
 
 // Define NPC_Encounter
 struct NpcEncounter{

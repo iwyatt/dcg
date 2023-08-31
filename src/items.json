@@ -1,0 +1,71 @@
+[
+    "Weapons",
+    {
+        "name": "Dagger",
+        "weapon": {
+            "weight": 2,
+            "range": "melee",
+            "base_damge": 2,
+            "str_bonus": 0.05,
+            "dex_bonus": 0.20,
+            "con_bonus": 0.01,
+            "int_bonus": 0.05,
+            "wis_bonus": 0.01,
+            "cha_bonus": 0.00
+        }
+    },
+    {
+        "name": "Sword",
+        "weapon": {
+            "weight": 2,
+            "range": "melee",
+            "base_damage": 4,
+            "str_bonus": 0.10,
+            "dex_bonus": 0.10,
+            "con_bonus": 0.01,
+            "int_bonus": 0.05,
+            "wis_bonus": 0.01,
+            "cha_bonus": 0.00
+        }
+    },
+    {
+        "name": "Bow",
+        "weapon": {
+            "weight": 2,
+            "range": "ranged",
+            "base_damage": 1,
+            "str_bonus": 0.05,
+            "dex_bonus": 0.20,
+            "con_bonus": 0.05,
+            "int_bonus": 0.06,
+            "wis_bonus": 0.05,
+            "cha_bonus": 0.00
+        }
+    },
+    {
+        "name": "Cross Bow",
+        "weapon": {
+            "weight": 3,
+            "range": "ranged",
+            "base_damage": 2,
+            "str_bonus": 0.08,
+            "dex_bonus": 0.15,
+            "con_bonus": 0.03,
+            "int_bonus": 0.03,
+            "wis_bonus": 0.02,
+            "cha_bonus": 0.00
+        }
+    },
+
+    "Armor",
+    {
+        "name": "clothes",
+        "armor": 1,
+        "weight": 1
+    },
+    {
+        "name": "Leather Armor",
+        "armor": 3,
+        "weight": 2
+    }
+]
