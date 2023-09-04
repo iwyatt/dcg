@@ -1,12 +1,12 @@
 use crate::actors::*;
 use std::cmp;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Inventory {
     pub items: Vec<InventoryItem>,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct InventoryItem {
     pub name: String,
     pub weight: i64,
@@ -23,20 +23,20 @@ pub struct InventoryItem {
 //     pub restoration: f64,
 // }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Weapon {
     pub enagement_type: EngagementType,
     pub str_factor: f64,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum EngagementType {
     Melee,
     Ranged,
     Chant,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Armor {
     pub name: String,
     pub base: i64,

@@ -1,10 +1,14 @@
 use crate::inventory::*;
 use chrono::*;
 use sha256::digest;
-use std::cmp;
+use std::{cmp, ops::Index};
 
+#[derive(Clone)]
 pub struct Actor {
     pub name: String,
+    pub buffs: BuffStack, //TODO: consider replacing this with a vector of Buff struct
+    pub inventory: Inventory, //TODO: consider replacing this with a vector of InventoryItem struct
+    // I considered putting the following Attributes in to a vector, but found that it complicated the code without adding much value.
     pub hp_current: Attribute,
     pub hp_max: Attribute,
     pub mp_current: Attribute,
@@ -17,15 +21,18 @@ pub struct Actor {
     pub cha: Attribute,
     pub encumberence_current: Attribute,
     pub encumberence_max: Attribute,
-    pub inventory: Inventory,
+    pub defense: Attribute,
+    pub offense: Attribute,
 }
 
+#[derive(Clone, Copy)]
 pub struct Attribute {
     pub attribute: Attributes,
     pub base_value: i64,
     pub buff_value: i64,
 }
 
+#[derive(Clone, Copy)]
 pub enum Attributes {
     HPCurrent,
     HPMax,
@@ -39,8 +46,11 @@ pub enum Attributes {
     Charisma,
     EncumberenceCurrent,
     EncumberenceMax,
+    Defense,
+    Offense,
 }
 
+#[derive(Clone)]
 pub enum CharType {
     Player,
     Npc,
@@ -113,6 +123,19 @@ pub fn create_actor(mut name: String) -> Actor {
             base_value: 1,
             buff_value: 0,
         },
+        defense: Attribute {
+            attribute: Attributes::Defense,
+            base_value: 0,
+            buff_value: 0,
+        },
+        offense: Attribute {
+            attribute: Attributes::Defense,
+            base_value: 0,
+            buff_value: 0,
+        },
+        buffs: BuffStack {
+            effects: Vec::new(),
+        },
         inventory: Inventory {
             items: vec![InventoryItem {
                 name: String::from("Health Potion"),
@@ -123,13 +146,16 @@ pub fn create_actor(mut name: String) -> Actor {
         },
     };
 
-    // initialize actor values - should this be a seperate function?
     actor.str.base_value = get_int_from_seed(&seed, 0) + 3;
     actor.dex.base_value = get_int_from_seed(&seed, 1) + 3;
     actor.con.base_value = get_int_from_seed(&seed, 2) + 3;
     actor.int.base_value = get_int_from_seed(&seed, 3) + 3;
     actor.wis.base_value = get_int_from_seed(&seed, 4) + 3;
     actor.cha.base_value = get_int_from_seed(&seed, 5) + 3;
+
+    // actor's innate offensive and defensive power sans weapons/armor
+    actor.defense.base_value = (actor.str.base_value + actor.dex.base_value) / 2;
+    actor.offense.base_value = (actor.str.base_value + actor.dex.base_value) / 2;
 
     // hp/mp
     actor.hp_current.base_value = actor.con.base_value;
@@ -143,6 +169,14 @@ pub fn create_actor(mut name: String) -> Actor {
     //this seems awkward - shouldnt this be `actor.inventory.list.push("Health Potion")`?
     Inventory::new_consumable(&mut actor, &"Mana Potion".to_string());
 
+    actor.buffs.effects.push(Buff {
+        name: String::from("Neophyte's Advantage"),
+        duration: 1,
+        mod_attribute: actor.defense,
+        mod_flat: 1,
+        mod_scale: 0.0,
+    });
+
     return actor;
 }
 
@@ -153,55 +187,113 @@ fn get_int_from_seed(seed: &String, input: usize) -> i64 {
     return i;
 }
 
+#[derive(Clone)]
 pub struct BuffStack {
-    pub buffs: Vec<Buff>,
-    pub sum_str: i64,
+    pub effects: Vec<Buff>,
 }
 
+#[derive(Clone)]
 pub struct Buff {
-    name: String,
-    duration: i64,
-    mod_attribute: String,
-    mod_base: i64,
-    mod_scale: f64,
+    pub name: String,
+    pub duration: i64,
+    pub mod_attribute: Attribute,
+    pub mod_flat: i64,
+    pub mod_scale: f64,
 }
 
-fn create_buff(mut actor: Actor) {
-    let buff = Buff {
-        name: String::from("Str"),
-        duration: 1,
-        mod_attribute: String::from("Strength"),
-        mod_base: 1,
-        mod_scale: 0.1,
-    };
+// fn create_buff(mut actor: Actor, buff_data: Buff) {
+//     let buff = Buff {
+//         name: String::from("Str"),
+//         duration: 1,
+//         mod_attribute: Attribute { attribute: attribute, base_value: (), buff_value: () },
+//         mod_base: 1,
+//         mod_scale: 0.1,
+//     };
 
-    //add to actor buff stack
-}
+//     //add to actor buff stack
+// }
 
 pub trait Update {
-    fn update_buff_stack(&mut self) {}
+    fn update_buff_stack(actor: &mut Actor) {}
 }
 
 impl Update for BuffStack {
-    fn update_buff_stack(&mut self) {
-        //initialize sum buff
-        let mut sum_str = 0; //TODO: should initialize this as i64
-
+    fn update_buff_stack(actor: &mut Actor) {
         // tick down each buff
-        for i in 0..self.buffs.len() {
-            self.buffs[i].duration = self.buffs[i].duration - 1;
+        let mut remove_buff_indexes: Vec<usize> = Vec::new();
+        for i in 0..actor.buffs.effects.len() {
+            actor.buffs.effects[i].duration = actor.buffs.effects[i].duration - 1;
 
-            // remove buff if expired
-            if self.buffs[i].duration <= 0 {
-                self.buffs.remove(i);
-            } else {
-                sum_str = sum_str + self.buffs[i].mod_base;
-                //TODO: implement the scaling factor for player strength (and other attributes)
+            // if buff expired, add index of buff to vector to be removed outside of loop
+            // else bad things happen if we try to remove buff via index while still inside the loop
+            if actor.buffs.effects[i].duration <= 0 {
+                remove_buff_indexes.push(i);
+                //
             }
         }
 
-        //update the buff stack's sum of str
-        self.sum_str = sum_str;
+        // iterate through list of buff indexes that should be removed
+        if remove_buff_indexes.len() > 0 {
+            for i in 0..remove_buff_indexes.len() {
+                actor.buffs.effects.remove(i); //derefencing? Is this working?
+            }
+        }
+
+        // recalculate buff stack effects
+        // (super inefficient - should be incremental but probably within performance params for most systems)
+        // TODO: Refactor for incremental additions/removals
+        // set base buff values back to zero
+        actor.offense.buff_value = 0;
+        actor.defense.buff_value = 0;
+        actor.hp_current.buff_value = 0;
+        actor.hp_max.buff_value = 0;
+        actor.str.buff_value = 0;
+        actor.dex.buff_value = 0;
+        actor.con.buff_value = 0;
+        actor.int.buff_value = 0;
+        actor.wis.buff_value = 0;
+        actor.cha.buff_value = 0;
+
+        for i in 0..actor.buffs.effects.len() {
+            match actor.buffs.effects[i].mod_attribute.attribute {
+                // TODO: Fill out all attributes match statement
+                Attributes::Strength => {
+                    actor.str.buff_value = actor.str.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Dexterity => {
+                    actor.dex.buff_value = actor.dex.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Constitution => {
+                    actor.con.buff_value = actor.con.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Intelligence => {
+                    actor.int.buff_value = actor.int.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Wisdom => {
+                    actor.wis.buff_value = actor.wis.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Charisma => {
+                    actor.cha.buff_value = actor.cha.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Offense => {
+                    actor.offense.buff_value =
+                        actor.offense.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::Defense => {
+                    actor.defense.buff_value =
+                        actor.defense.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::HPCurrent => {
+                    actor.hp_current.buff_value =
+                        actor.hp_current.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                Attributes::HPMax => {
+                    actor.hp_max.buff_value =
+                        actor.hp_max.buff_value + actor.buffs.effects[i].mod_flat
+                }
+                _ => println!("*** BUFF NOT IMPLEMENTED *** "),
+            }
+        }
     }
     // for each buff in stack, tick, remove buffs that are expired; sum results; update buffstack attribute
 }
