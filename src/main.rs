@@ -4,6 +4,10 @@
 // ## FEATURES
 // - implement basic inventory equipment and consumables
 // - implement buff stack - includes equipment, passive, and duration effects
+//      - implement equippable items on actors
+//          - write the structs / create some armor by hand
+//      - implement encumberence (And item capacity/volume) on actors
+//      - implement post-fight loot process
 // - implement serielization from json files
 // - implement encounter actions (eg design parlay and spell systems) for both player and npc
 //  - implement initiative roll for each round (?)
@@ -90,6 +94,8 @@ fn npc_encounter(player: &mut Actor) {
         "Jerubaal",
         "Gunther Boogle",
         "Xurich",
+        "Ted Barry",
+        "Richard Tooth",
     ];
     let enemy_index = rand::thread_rng().gen_range(0..enemies.len()); //update RNG range as I add functionality
 
@@ -121,7 +127,7 @@ fn npc_encounter(player: &mut Actor) {
 
         // incrment encounter turns
         npc_encounter.turns = npc_encounter.turns + 1;
-        actors::BuffStack::update_buff_stack(player);
+        actors::Buff::update_buff_stack(player);
         clear_screen(player);
 
         // ### npc turn
@@ -140,7 +146,7 @@ fn npc_encounter(player: &mut Actor) {
 
         // incrment encounter turns
         npc_encounter.turns = npc_encounter.turns + 1;
-        actors::BuffStack::update_buff_stack(&mut npc);
+        actors::Buff::update_buff_stack(&mut npc);
 
         //clear screen
         clear_screen(player);
@@ -195,10 +201,10 @@ fn clear_screen(player: &Actor) {
 
     // print inventory
     println!("~ ~ ~ ~INVENTORY~ ~ ~ ~");
-    if player.inventory.items.len() <= 0 {
+    if player.inventory.len() <= 0 {
         println!(" NO INVENTORY !");
     } else {
-        for i in player.inventory.items.iter() {
+        for i in player.inventory.iter() {
             println!("{}", i.name);
         }
         println!("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
@@ -206,10 +212,10 @@ fn clear_screen(player: &Actor) {
 
     //print buffs
     println!("~ ~ ~ ~BUFFS~ ~ ~ ~");
-    if player.buffs.effects.len() <= 0 {
+    if player.buffs.len() <= 0 {
         println!(" NO BUFFS !");
     } else {
-        for i in player.buffs.effects.iter() {
+        for i in player.buffs.iter() {
             println!("{}", i.name);
         }
     }
@@ -247,6 +253,7 @@ fn npc_turn(player: &mut Actor, npc: &mut Actor) {
 }
 
 fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
+    // TODO: Implement check to make sure actor has a melee weapon
     println!("{} attacks {} with melee!", actor.name, target.name);
 
     // 1. Add up actor attack value total
@@ -254,12 +261,23 @@ fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
     let attack_value = actor.str.base_value + actor.str.buff_value;
 
     // 2. get unmitigated damage by subtracting damage mitigation from the attack value
-    let mut unmitigated_damage =
-        attack_value - (target.defense.base_value + target.defense.buff_value);
+    let mut unmitigated_damage = attack_value
+        - (target.defense.base_value
+            + target.defense.buff_value
+            + target.slot_armor.armor_value.base_value
+            + target.slot_armor.armor_value.buff_value);
 
     // 3. assumng unmitigated damage is a negative int, apply unmitigated damage to current bonus hp, if there is any
     if unmitigated_damage > 0 && target.hp_current.buff_value > 0 {
-        target.hp_current.buff_value = target.hp_current.buff_value - unmitigated_damage;
+        // set up value to subtract from hp buff
+        let hp_buff_dmg = unmitigated_damage;
+
+        // set the new value of the unmitigated dmg
+        // eg reduce the quantity of unmitigated damage by the amount of current hp buff (prior to damage being applied)
+        unmitigated_damage = unmitigated_damage - target.hp_current.buff_value;
+
+        // set the new value of the current hp buff
+        target.hp_current.buff_value = target.hp_current.buff_value - hp_buff_dmg;
 
         //carry over any remaining unmitigated damage
         if target.hp_current.buff_value < 0 {
@@ -284,6 +302,7 @@ fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
 }
 
 fn actor_attack_target_ranged(actor: &mut Actor, target: &mut Actor) {
+    // TODO: Implement check to make sure actor has a ranged weapon
     println!("{} attacks {} with ranged!", actor.name, target.name);
 
     // 1. Add up actor attack value total
@@ -291,8 +310,11 @@ fn actor_attack_target_ranged(actor: &mut Actor, target: &mut Actor) {
     let attack_value = actor.dex.base_value + actor.dex.buff_value;
 
     // 2. get unmitigated damage by subtracting damage mitigation from the attack value
-    let mut unmitigated_damage =
-        attack_value - (target.defense.base_value + target.defense.buff_value);
+    let mut unmitigated_damage = attack_value
+        - (target.defense.base_value
+            + target.defense.buff_value
+            + target.slot_armor.armor_value.base_value
+            + target.slot_armor.armor_value.buff_value);
 
     // 3. assumng unmitigated damage is a negative int, apply unmitigated damage to current bonus hp, if there is any
     if unmitigated_damage > 0 && target.hp_current.buff_value > 0 {
@@ -392,7 +414,7 @@ fn player_action_talk(player: &Actor, npc: &Actor) {
 // player input action: defend
 fn actor_defend(player: &mut Actor) {
     // TODO: player action defend (+1 all attriutes for 1 round)
-    player.buffs.effects.push(Buff {
+    player.buffs.push(Buff {
         name: String::from("Defensive Stance"),
         duration: 2,
         mod_attribute: player.defense,
@@ -463,7 +485,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             14 => {
                 println!("Resilience!");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Resilience of the Pangolin"),
                     duration: 3,
                     mod_attribute: actor.defense,
@@ -473,7 +495,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             13 => {
                 println!("Zen!");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Zen of Gaia"),
                     duration: 3,
                     mod_attribute: actor.mp_current,
@@ -483,7 +505,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             12 => {
                 println!("Longevity!");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Longevity of the Treant"),
                     duration: 3,
                     mod_attribute: actor.hp_current,
@@ -493,7 +515,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             11 => {
                 println!("Charming. :)");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Charisma of the Dolphin"),
                     duration: 6,
                     mod_attribute: actor.cha,
@@ -503,7 +525,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             10 => {
                 println!("Smart. 8)");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Intelligence of the Raven"),
                     duration: 6,
                     mod_attribute: actor.int,
@@ -513,7 +535,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             9 => {
                 println!("Precocious. :P");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Wisdom of the Owl"),
                     duration: 6,
                     mod_attribute: actor.wis,
@@ -523,7 +545,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             8 => {
                 println!("Fit.");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Constitution of the Water Bear"),
                     duration: 6,
                     mod_attribute: actor.con,
@@ -533,7 +555,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             7 => {
                 println!("Agile!");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Dexterity of the Tiger"),
                     duration: 6,
                     mod_attribute: actor.dex,
@@ -543,7 +565,7 @@ fn actor_chant(actor: &mut Actor, target: &mut Actor) {
             }
             6 => {
                 println!("Beefy!");
-                actor.buffs.effects.push(Buff {
+                actor.buffs.push(Buff {
                     name: String::from("Strength of The Ox"),
                     duration: 6,
                     mod_attribute: actor.str,

@@ -1,12 +1,12 @@
-use crate::actors::*;
+use crate::actors::{self, *};
 use std::cmp;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Inventory {
     pub items: Vec<InventoryItem>,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct InventoryItem {
     pub name: String,
     pub weight: i64,
@@ -23,24 +23,27 @@ pub struct InventoryItem {
 //     pub restoration: f64,
 // }
 
-#[derive(PartialEq, Debug, Clone)]
+// #[derive(PartialEq, Debug, Clone)]
+// pub enum EngagementType {
+//     Melee,
+//     Ranged,
+//     Chant,
+// }
+
+#[derive(PartialEq, Clone)]
 pub struct Weapon {
-    pub enagement_type: EngagementType,
-    pub str_factor: f64,
+    // pub enagement_type: EngagementType,
+    pub name: String,
+    pub attributes: Vec<Attribute>,
+    pub buffs: Vec<actors::Buff>,
 }
 
-#[derive(PartialEq, Debug, Clone)]
-pub enum EngagementType {
-    Melee,
-    Ranged,
-    Chant,
-}
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Armor {
     pub name: String,
-    pub base: i64,
-    pub str_bonus: f64,
+    pub armor_value: Attribute,
+    pub encumberence_value: Attribute,
+    pub buffs: Vec<actors::Buff>,
 }
 
 pub trait Use {
@@ -60,7 +63,7 @@ impl Use for Inventory {
                     weapon: None,
                     armor: None,
                 };
-                character.inventory.items.push(new_item);
+                character.inventory.push(new_item);
             }
 
             "Mana Potion" => {
@@ -70,7 +73,7 @@ impl Use for Inventory {
                     weapon: None,
                     armor: None,
                 };
-                character.inventory.items.push(new_item);
+                character.inventory.push(new_item);
             }
             _ => println!("No Item Created"),
         }
@@ -82,7 +85,6 @@ impl Use for Inventory {
         //println!("{:?}", character.inventory.items.iter());
         let item_index = character
             .inventory
-            .items
             .iter()
             .position(|item| String::from(&item.name) == String::from(item_name));
 
@@ -92,7 +94,7 @@ impl Use for Inventory {
         } else {
             // remove from inventory
             println!("{}: *GULP!*", character.name);
-            character.inventory.items.remove(item_index.unwrap());
+            character.inventory.remove(item_index.unwrap());
         }
 
         // do the effect

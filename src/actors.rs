@@ -6,9 +6,10 @@ use std::{cmp, ops::Index};
 #[derive(Clone)]
 pub struct Actor {
     pub name: String,
-    pub buffs: BuffStack, //TODO: consider replacing this with a vector of Buff struct
-    pub inventory: Inventory, //TODO: consider replacing this with a vector of InventoryItem struct
+    pub buffs: Vec<Buff>, //TODO: consider replacing this with a vector of Buff struct
+    pub inventory: Vec<InventoryItem>, //TODO: consider replacing this with a vector of InventoryItem struct
     // I considered putting the following Attributes in to a vector, but found that it complicated the code without adding much value.
+    // TODO: Revisit to see if I think putting the attributes in a vector would be better
     pub hp_current: Attribute,
     pub hp_max: Attribute,
     pub mp_current: Attribute,
@@ -23,17 +24,29 @@ pub struct Actor {
     pub encumberence_max: Attribute,
     pub defense: Attribute,
     pub offense: Attribute,
+    pub slot_armor: Armor,
+    pub slot_left_hand: Weapon,
+    pub slot_right_hand: Weapon,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Attribute {
-    pub attribute: Attributes,
+    pub attribute: AttributeName,
     pub base_value: i64,
     pub buff_value: i64,
 }
 
-#[derive(Clone, Copy)]
-pub enum Attributes {
+#[derive(PartialEq, Clone)]
+pub struct Buff {
+    pub name: String,
+    pub duration: i64,
+    pub mod_attribute: Attribute,
+    pub mod_flat: i64,
+    pub mod_scale: f64,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum AttributeName {
     HPCurrent,
     HPMax,
     MPCurrent,
@@ -46,9 +59,18 @@ pub enum Attributes {
     Charisma,
     EncumberenceCurrent,
     EncumberenceMax,
+    EncumberenceValue,
     Defense,
     Offense,
+    ArmorValue,
+    Regeneration,
+    WeaponBaseDamage,
 }
+
+// #[derive(Clone)]
+// pub struct BuffStack {
+//     pub effects: Vec<Buff>,
+// }
 
 #[derive(Clone)]
 pub enum CharType {
@@ -64,85 +86,122 @@ pub fn create_actor(mut name: String) -> Actor {
     let mut actor = Actor {
         name: String::from(&name),
         hp_current: Attribute {
-            attribute: Attributes::HPCurrent,
+            attribute: AttributeName::HPCurrent,
             base_value: 1,
             buff_value: 0,
         },
         hp_max: Attribute {
-            attribute: Attributes::HPMax,
+            attribute: AttributeName::HPMax,
             base_value: 1,
             buff_value: 0,
         },
         mp_current: Attribute {
-            attribute: Attributes::MPCurrent,
+            attribute: AttributeName::MPCurrent,
             base_value: 1,
             buff_value: 0,
         },
         mp_max: Attribute {
-            attribute: Attributes::MPMax,
+            attribute: AttributeName::MPMax,
             base_value: 1,
             buff_value: 0,
         },
         str: Attribute {
-            attribute: Attributes::Strength,
+            attribute: AttributeName::Strength,
             base_value: 1,
             buff_value: 0,
         },
         dex: Attribute {
-            attribute: Attributes::Dexterity,
+            attribute: AttributeName::Dexterity,
             base_value: 1,
             buff_value: 0,
         },
         con: Attribute {
-            attribute: Attributes::Constitution,
+            attribute: AttributeName::Constitution,
             base_value: 1,
             buff_value: 0,
         },
         int: Attribute {
-            attribute: Attributes::Intelligence,
+            attribute: AttributeName::Intelligence,
             base_value: 1,
             buff_value: 0,
         },
         wis: Attribute {
-            attribute: Attributes::Wisdom,
+            attribute: AttributeName::Wisdom,
             base_value: 1,
             buff_value: 0,
         },
         cha: Attribute {
-            attribute: Attributes::Charisma,
+            attribute: AttributeName::Charisma,
             base_value: 1,
             buff_value: 0,
         },
         encumberence_current: Attribute {
-            attribute: Attributes::EncumberenceCurrent,
+            attribute: AttributeName::EncumberenceCurrent,
             base_value: 1,
             buff_value: 0,
         },
         encumberence_max: Attribute {
-            attribute: Attributes::EncumberenceMax,
+            attribute: AttributeName::EncumberenceMax,
             base_value: 1,
             buff_value: 0,
         },
         defense: Attribute {
-            attribute: Attributes::Defense,
+            attribute: AttributeName::Defense,
             base_value: 0,
             buff_value: 0,
         },
         offense: Attribute {
-            attribute: Attributes::Defense,
+            attribute: AttributeName::Defense,
             base_value: 0,
             buff_value: 0,
         },
-        buffs: BuffStack {
-            effects: Vec::new(),
+        buffs: Vec::new(),
+        inventory: vec![InventoryItem {
+            name: String::from("Health Potion"),
+            weight: 1,
+            weapon: None,
+            armor: None,
+        }],
+        slot_armor: Armor {
+            name: String::from("Starting Armor"),
+            armor_value: Attribute {
+                attribute: AttributeName::ArmorValue,
+                base_value: 2,
+                buff_value: 0,
+            },
+            encumberence_value: Attribute {
+                attribute: AttributeName::EncumberenceValue,
+                base_value: 1,
+                buff_value: 0,
+            },
+            buffs: Vec::new(),
         },
-        inventory: Inventory {
-            items: vec![InventoryItem {
-                name: String::from("Health Potion"),
-                weight: 1,
-                weapon: None,
-                armor: None,
+
+        slot_left_hand: Weapon {
+            name: String::from("Sword"),
+            attributes: vec![Attribute {
+                attribute: AttributeName::WeaponBaseDamage,
+                base_value: 2,
+                buff_value: 0,
             }],
+            buffs: Vec::new(),
+        },
+
+        slot_right_hand: Weapon {
+            name: String::from("Wooden Shield"),
+            attributes: vec![
+                Attribute {
+                    attribute: AttributeName::ArmorValue,
+                    base_value: 1,
+                    buff_value: 0,
+                },
+                Attribute {
+                    attribute: AttributeName::WeaponBaseDamage,
+                    base_value: 1,
+                    buff_value: 0,
+                },
+            ],
+            buffs: Vec::new(),
         },
     };
 
@@ -169,7 +228,7 @@ pub fn create_actor(mut name: String) -> Actor {
     //this seems awkward - shouldnt this be `actor.inventory.list.push("Health Potion")`?
     Inventory::new_consumable(&mut actor, &"Mana Potion".to_string());
 
-    actor.buffs.effects.push(Buff {
+    actor.buffs.push(Buff {
         name: String::from("Neophyte's Advantage"),
         duration: 1,
         mod_attribute: actor.defense,
@@ -185,20 +244,6 @@ fn get_int_from_seed(seed: &String, input: usize) -> i64 {
     let hex_char = seed.chars().nth(input).unwrap().to_string(); // UNWRAP UNWRAP!
     let i = i64::from_str_radix(&hex_char, 16).unwrap();
     return i;
-}
-
-#[derive(Clone)]
-pub struct BuffStack {
-    pub effects: Vec<Buff>,
-}
-
-#[derive(Clone)]
-pub struct Buff {
-    pub name: String,
-    pub duration: i64,
-    pub mod_attribute: Attribute,
-    pub mod_flat: i64,
-    pub mod_scale: f64,
 }
 
 // fn create_buff(mut actor: Actor, buff_data: Buff) {
@@ -217,16 +262,16 @@ pub trait Update {
     fn update_buff_stack(actor: &mut Actor) {}
 }
 
-impl Update for BuffStack {
+impl Update for Buff {
     fn update_buff_stack(actor: &mut Actor) {
         // tick down each buff
         let mut remove_buff_indexes: Vec<usize> = Vec::new();
-        for i in 0..actor.buffs.effects.len() {
-            actor.buffs.effects[i].duration = actor.buffs.effects[i].duration - 1;
+        for i in 0..actor.buffs.len() {
+            actor.buffs[i].duration = actor.buffs[i].duration - 1;
 
             // if buff expired, add index of buff to vector to be removed outside of loop
             // else bad things happen if we try to remove buff via index while still inside the loop
-            if actor.buffs.effects[i].duration <= 0 {
+            if actor.buffs[i].duration <= 0 {
                 remove_buff_indexes.push(i);
                 //
             }
@@ -235,7 +280,7 @@ impl Update for BuffStack {
         // iterate through list of buff indexes that should be removed
         if remove_buff_indexes.len() > 0 {
             for i in 0..remove_buff_indexes.len() {
-                actor.buffs.effects.remove(i); //derefencing? Is this working?
+                actor.buffs.remove(i); //derefencing? Is this working?
             }
         }
 
@@ -254,42 +299,39 @@ impl Update for BuffStack {
         actor.wis.buff_value = 0;
         actor.cha.buff_value = 0;
 
-        for i in 0..actor.buffs.effects.len() {
-            match actor.buffs.effects[i].mod_attribute.attribute {
+        for i in 0..actor.buffs.len() {
+            match actor.buffs[i].mod_attribute.attribute {
                 // TODO: Fill out all attributes match statement
-                Attributes::Strength => {
-                    actor.str.buff_value = actor.str.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Strength => {
+                    actor.str.buff_value = actor.str.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Dexterity => {
-                    actor.dex.buff_value = actor.dex.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Dexterity => {
+                    actor.dex.buff_value = actor.dex.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Constitution => {
-                    actor.con.buff_value = actor.con.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Constitution => {
+                    actor.con.buff_value = actor.con.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Intelligence => {
-                    actor.int.buff_value = actor.int.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Intelligence => {
+                    actor.int.buff_value = actor.int.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Wisdom => {
-                    actor.wis.buff_value = actor.wis.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Wisdom => {
+                    actor.wis.buff_value = actor.wis.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Charisma => {
-                    actor.cha.buff_value = actor.cha.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Charisma => {
+                    actor.cha.buff_value = actor.cha.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Offense => {
-                    actor.offense.buff_value =
-                        actor.offense.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Offense => {
+                    actor.offense.buff_value = actor.offense.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::Defense => {
-                    actor.defense.buff_value =
-                        actor.defense.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::Defense => {
+                    actor.defense.buff_value = actor.defense.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::HPCurrent => {
+                AttributeName::HPCurrent => {
                     actor.hp_current.buff_value =
-                        actor.hp_current.buff_value + actor.buffs.effects[i].mod_flat
+                        actor.hp_current.buff_value + actor.buffs[i].mod_flat
                 }
-                Attributes::HPMax => {
-                    actor.hp_max.buff_value =
-                        actor.hp_max.buff_value + actor.buffs.effects[i].mod_flat
+                AttributeName::HPMax => {
+                    actor.hp_max.buff_value = actor.hp_max.buff_value + actor.buffs[i].mod_flat
                 }
                 _ => println!("*** BUFF NOT IMPLEMENTED *** "),
             }
