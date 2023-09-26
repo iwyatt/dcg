@@ -6,8 +6,8 @@ use std::{cmp, ops::Index};
 #[derive(Clone)]
 pub struct Actor {
     pub name: String,
-    pub buffs: Vec<Buff>, //TODO: consider replacing this with a vector of Buff struct
-    pub inventory: Vec<InventoryItem>, //TODO: consider replacing this with a vector of InventoryItem struct
+    pub buffs: Vec<Buff>,
+    pub inventory: Vec<InventoryItem>,
     // I considered putting the following Attributes in to a vector, but found that it complicated the code without adding much value.
     // TODO: Revisit to see if I think putting the attributes in a vector would be better
     pub hp_current: Attribute,
@@ -36,15 +36,6 @@ pub struct Attribute {
     pub buff_value: i64,
 }
 
-#[derive(PartialEq, Clone)]
-pub struct Buff {
-    pub name: String,
-    pub duration: i64,
-    pub mod_attribute: Attribute,
-    pub mod_flat: i64,
-    pub mod_scale: f64,
-}
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum AttributeName {
     HPCurrent,
@@ -65,6 +56,15 @@ pub enum AttributeName {
     ArmorValue,
     Regeneration,
     WeaponBaseDamage,
+}
+
+#[derive(PartialEq, Clone)]
+pub struct Buff {
+    pub name: String,
+    pub duration: i64,
+    pub mod_attribute: Attribute,
+    pub mod_flat: i64,
+    pub mod_scale: f64,
 }
 
 // #[derive(Clone)]
@@ -164,45 +164,15 @@ pub fn create_actor(mut name: String) -> Actor {
         }],
         slot_armor: Armor {
             name: String::from("Starting Armor"),
-            armor_value: Attribute {
-                attribute: AttributeName::ArmorValue,
-                base_value: 2,
-                buff_value: 0,
-            },
-            encumberence_value: Attribute {
-                attribute: AttributeName::EncumberenceValue,
-                base_value: 1,
-                buff_value: 0,
-            },
+            armor_base: 0,
+            armor_buff: 0,
+            encumberence_base: 0,
+            encumberence_buff: 0,
             buffs: Vec::new(),
         },
 
-        slot_left_hand: Weapon {
-            name: String::from("Sword"),
-            attributes: vec![Attribute {
-                attribute: AttributeName::WeaponBaseDamage,
-                base_value: 2,
-                buff_value: 0,
-            }],
-            buffs: Vec::new(),
-        },
-
-        slot_right_hand: Weapon {
-            name: String::from("Wooden Shield"),
-            attributes: vec![
-                Attribute {
-                    attribute: AttributeName::ArmorValue,
-                    base_value: 1,
-                    buff_value: 0,
-                },
-                Attribute {
-                    attribute: AttributeName::WeaponBaseDamage,
-                    base_value: 1,
-                    buff_value: 0,
-                },
-            ],
-            buffs: Vec::new(),
-        },
+        slot_left_hand: create_random_1h_weapon(get_int_from_seed(&seed, 6)),
+        slot_right_hand: create_random_1h_shield(get_int_from_seed(&seed, 7)),
     };
 
     actor.str.base_value = get_int_from_seed(&seed, 0) + 3;
@@ -240,7 +210,7 @@ pub fn create_actor(mut name: String) -> Actor {
 }
 
 // function to convert char from sha256 hash to int for use in player stats
-fn get_int_from_seed(seed: &String, input: usize) -> i64 {
+pub fn get_int_from_seed(seed: &String, input: usize) -> i64 {
     let hex_char = seed.chars().nth(input).unwrap().to_string(); // UNWRAP UNWRAP!
     let i = i64::from_str_radix(&hex_char, 16).unwrap();
     return i;

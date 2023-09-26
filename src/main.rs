@@ -63,14 +63,14 @@ fn main() {
     println!("Very well, {}!", player.name);
 
     // # print character attributes
-    clear_screen(&player);
+    print_character_status(&player);
 
     // # NPC Encounter
     let mut kills = 0;
     while player.hp_current.base_value > 0 {
-        println!("KILLS: {}", kills.to_string());
         npc_encounter(&mut player);
         kills = kills + 1;
+        println!("KILLS: {}", kills.to_string());
     }
 }
 
@@ -107,10 +107,15 @@ fn npc_encounter(player: &mut Actor) {
     };
 
     // ## announce the npc!
-    println!("An {} has appeared!", npc.name);
+    println!("A {} has appeared!", npc.name);
+    let mut a = String::new();
+    io::stdin().read_line(&mut a).expect("Failed to read line");
+    print_screen(&player, &npc, &npc_encounter);
 
     // ## begin the encounter loop
     while matches!(&mut npc_encounter.result, EncounterResult::NoResult) {
+        // ### print the screen
+
         // ### player turn
         player_turn(player, &mut npc);
 
@@ -128,7 +133,7 @@ fn npc_encounter(player: &mut Actor) {
         // incrment encounter turns
         npc_encounter.turns = npc_encounter.turns + 1;
         actors::Buff::update_buff_stack(player);
-        clear_screen(player);
+        //print_screen(&player,&npc, &npc_encounter);
 
         // ### npc turn
         npc_turn(player, &mut npc);
@@ -149,20 +154,35 @@ fn npc_encounter(player: &mut Actor) {
         actors::Buff::update_buff_stack(&mut npc);
 
         //clear screen
-        clear_screen(player);
+        let mut a = String::new();
+        io::stdin().read_line(&mut a).expect("Failed to read line");
+        print_screen(&player, &npc, &npc_encounter);
     }
 
     // ## conclude the encounter
     // TODO: add xp, gold, inventory, congratulate the player, level up, etc)
     resolve_encounter(player, &mut npc, &mut npc_encounter);
 
-    let mut a = String::new();
-    io::stdin().read_line(&mut a).expect("Failed to read line");
-    clear_screen(player);
+    print_screen(&player, &npc, &npc_encounter);
 }
 
-fn clear_screen(player: &Actor) {
-    println!("");
+fn print_screen(player: &Actor, target: &Actor, npc_encounter: &NpcEncounter) {
+    // print new info
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+    println!("{} vs. {}", player.name, target.name);
+    println!("Turn: {}", npc_encounter.turns);
+    println!(
+        "HP: {} / {} | MP: {} / {}",
+        player.hp_current.base_value,
+        player.hp_max.base_value,
+        player.mp_current.base_value,
+        player.mp_max.base_value
+    );
+    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+}
+
+fn print_character_status(player: &Actor) {
+    println!("CHARACTER ATTRIBUTES");
     println!("------------------------");
     println!(
         "HP: {} + {} / {} | MP: {} / {}",
@@ -220,6 +240,10 @@ fn clear_screen(player: &Actor) {
         }
     }
     println!("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
+
+    println!("Press Enter to Continue");
+    let mut a = String::new();
+    io::stdin().read_line(&mut a).expect("Failed to read line");
 }
 
 fn resolve_encounter(player: &mut Actor, npc: &mut Actor, npc_encounter: &mut NpcEncounter) {
@@ -254,7 +278,7 @@ fn npc_turn(player: &mut Actor, npc: &mut Actor) {
 
 fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
     // TODO: Implement check to make sure actor has a melee weapon
-    println!("{} attacks {} with melee!", actor.name, target.name);
+    println!("{} attacks {} with {} {}!", actor.name, target.name, actor.slot_left_hand.name_prefix, actor.slot_left_hand.name);
 
     // 1. Add up actor attack value total
     // TODO: add in weapon value here when equipment system is implemented
@@ -264,8 +288,8 @@ fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
     let mut unmitigated_damage = attack_value
         - (target.defense.base_value
             + target.defense.buff_value
-            + target.slot_armor.armor_value.base_value
-            + target.slot_armor.armor_value.buff_value);
+            + target.slot_armor.armor_base
+            + target.slot_armor.armor_buff);
 
     // 3. assumng unmitigated damage is a negative int, apply unmitigated damage to current bonus hp, if there is any
     if unmitigated_damage > 0 && target.hp_current.buff_value > 0 {
@@ -313,8 +337,8 @@ fn actor_attack_target_ranged(actor: &mut Actor, target: &mut Actor) {
     let mut unmitigated_damage = attack_value
         - (target.defense.base_value
             + target.defense.buff_value
-            + target.slot_armor.armor_value.base_value
-            + target.slot_armor.armor_value.buff_value);
+            + target.slot_armor.armor_base
+            + target.slot_armor.armor_buff);
 
     // 3. assumng unmitigated damage is a negative int, apply unmitigated damage to current bonus hp, if there is any
     if unmitigated_damage > 0 && target.hp_current.buff_value > 0 {
