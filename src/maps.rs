@@ -27,7 +27,7 @@ pub struct Map {
 pub struct Location {
     pub id: i64,
     pub name: String,
-    pub encounters: Vec<Encounter>
+    pub encounters: Vec<Encounter>,
 }
 
 #[derive(Clone)]
@@ -42,9 +42,8 @@ pub struct Encounter {
     pub reward_gold: i64,
     pub failure_effect: EncounterFailureEffect,
     pub success_effect: EncounterSuccessEffect,
-    pub next_encounters: Vec<NextEncounter>
-    //surprise
-    //retreat-able
+    pub next_encounters: Vec<NextEncounter>, //surprise
+                                             //retreat-able
 }
 
 #[derive(Clone)]
@@ -52,13 +51,12 @@ pub struct Puzzle {
     pub id: i64,
     pub name: String,
     pub description: String,
-    pub solutions: Vec<PuzzleSolution>,
     pub num_attempts: i64,
+    pub solutions: Vec<PuzzleSolution>,
 }
 
 #[derive(Clone)]
-pub struct PuzzleSolution
-{
+pub struct PuzzleSolution {
     pub id: i64,
     pub name: String,
     pub description: String,
@@ -71,16 +69,17 @@ pub struct PuzzleSolution
     pub check_int: i64,
     pub check_wis: i64,
     pub check_cha: i64,
-    pub check_inventory: Vec<InventoryItem>
+    pub check_inventory: Vec<InventoryItem>,
 }
 
 #[derive(Clone, Copy)]
-pub enum EncounterSuccessEffect{
+pub enum EncounterSuccessEffect {
     NoEffect,
+    GainItem,
 }
 
 #[derive(Clone, Copy)]
-pub enum EncounterFailureEffect{
+pub enum EncounterFailureEffect {
     LoseHP,
     LoseMP,
     LoseXP,
@@ -92,14 +91,14 @@ pub enum EncounterFailureEffect{
 }
 
 #[derive(Clone, Copy)]
-pub struct NextEncounter{
+pub struct NextEncounter {
     pub id: i64,
     pub condition: NextEncounterCondition,
     pub next_encounter_id: i64,
 }
 
 #[derive(Clone, Copy)]
-pub enum NextEncounterCondition{
+pub enum NextEncounterCondition {
     EncounterSuccess,
     EncounterFailed,
     PuzzleSuccess,
@@ -142,7 +141,7 @@ pub fn create_tutorial_campaign() -> Campaign {
                                 condition: NextEncounterCondition::EncounterSuccess,
                                 next_encounter_id: 1
                             }
-                        ],  
+                        ],
                     },
                     Encounter {
                         id: 1,
@@ -151,6 +150,68 @@ pub fn create_tutorial_campaign() -> Campaign {
                         actors: vec![Some(create_actor(String::from("Foul Manifestation")))],
                         puzzles: Vec::new(),
                         reward_items: Vec::new(),
+                        reward_xp: 10,
+                        reward_gold: 0,
+                        failure_effect: EncounterFailureEffect::NoEffect,
+                        success_effect: EncounterSuccessEffect::NoEffect,
+                        next_encounters: vec![
+                            NextEncounter{
+                                id: 0,
+                                condition: NextEncounterCondition::EncounterSuccess,
+                                next_encounter_id: 2
+                            }
+                        ],
+                    },
+                    Encounter {
+                        id: 1,
+                        name: String::from("Wyatt's Footlocker"),
+                        description: String::from("After dispatching the beast, you see a footlocker inside the house."),
+                        actors: Vec::new(),
+                        puzzles: vec![Some(Puzzle{
+                                id: 0,
+                                name: String::from("Locked Footlocker"),
+                                description: String::from("The footlocker is locked with a built-in lock and latch. It is very secure."),
+                                num_attempts: 2,
+                                solutions: vec![
+                                    PuzzleSolution {
+                                    id: 0,
+                                    name: String::from("Use a key."),
+                                    description: String::from("While there is no guarantee you have the correct key, there is little harm in trying."),
+                                    attempt_description: String::from("You try opening the lock with a key."),
+                                    success_description: String::from("You insert a key into the lock. Although it settles into the lock with a satisfying click, it doesn't turn. Then you try turning the key counter-clock-wise and the footlocker pops open!"),
+                                    failure_description: String::from("While fussing with the lock, it rattles and jingles. You wonder if you broke it, but it does not open."),
+                                    check_str: 6,
+                                    check_dex: 2,
+                                    check_con: 6,
+                                    check_int: 4,
+                                    check_wis: 2,
+                                    check_cha: 0,
+                                    check_inventory: vec![
+                                        InventoryItem{
+                                            name: String::from("Wyatt's Key"),
+                                            weight: 1,
+                                            weapon: None,
+                                            armor: None,
+                                        }],
+                                    },
+                                    PuzzleSolution {
+                                        id: 1,
+                                        name: String::from("Break the footlocker open."),
+                                        description: String::from("No exposed weakpoint on the lock. Internal hinges. Well-joined corners and flush lid. Solid oak construction. This will not be easy to break open."),
+                                        attempt_description: String::from("You lift the heavy footlocker over your head and give it solid toss using body weight to add velocity. It thuds loudly and again when it hits the ground."),
+                                        success_description: String::from("You retrieve and examine the footlocker. There is a thin crack with just enough separation in the wood for you to pry on. After several minutes and a finger blister, the chest pops open!"),
+                                        failure_description: String::from("You retrieve and examine the footlocker. It is as solid as it ever was but is sligthly dented. You attempt to break the chest where it is dented, but without any meaningful process after several minutes."),
+                                        check_str: 15,
+                                        check_dex: 10,
+                                        check_con: 8,
+                                        check_int: 6,
+                                        check_wis: 2,
+                                        check_cha: 0,
+                                        check_inventory: Vec::new(),
+                                    }
+                                    ],
+                                })],
+                        reward_items: Vec::new(), //TODO: add potion as reward
                         reward_xp: 10,
                         reward_gold: 0,
                         failure_effect: EncounterFailureEffect::NoEffect,

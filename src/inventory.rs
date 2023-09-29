@@ -307,8 +307,11 @@ pub fn create_named_weapon(
         weapon.encumberence_base = (weapon.encumberence_base as f64 * 1.25) as i64;
     };
 
-
-    weapon.name_prefix = match if weapon.is_shield {weapon.armor_base} else {weapon.damage_base} {
+    weapon.name_prefix = match if weapon.is_shield {
+        weapon.armor_base
+    } else {
+        weapon.damage_base
+    } {
         1 => String::from("Begger's"),
         2 => String::from("Slave's"),
         3 => String::from("Serf's"),

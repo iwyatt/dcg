@@ -70,31 +70,105 @@ fn main() {
     // Start Tutorial Campaign
     let campaign = maps::create_tutorial_campaign();
 
-    start_tutorial_campaign(& mut player, campaign);
+    start_tutorial_campaign(&mut player, campaign);
 
-    // Post-Tutorial Campaign: Play Random # NPC Encounters 
+    // Post-Tutorial Campaign: Play Random NPC Encounters
     let mut kills = 0;
     while player.hp_current.base_value > 0 {
-        let mut npc : Actor = get_random_npc();
+        let mut npc: Actor = get_random_npc();
         npc_encounter(&mut player, &mut npc);
         kills = kills + 1;
         println!("KILLS: {}", kills.to_string());
     }
 }
 
-fn start_tutorial_campaign(mut player: & mut Actor, campaign: Campaign){
-    println!("{}, begins the {} campaign!",player.name, campaign.name);
+fn start_tutorial_campaign(mut player: &mut Actor, campaign: Campaign) {
+    println!("{}, begins the {} campaign!", player.name, campaign.name);
 
     println!("1st Quest: {}", campaign.quests[0].name);
 
-    println!("Starting your quest in {} at {}", campaign.maps[0].name, campaign.maps[0].locations[0].name);
+    println!(
+        "Starting your quest in {} at {}",
+        campaign.maps[0].name, campaign.maps[0].locations[0].name
+    );
 
-    for encounter in &campaign.maps[0].locations[0].encounters{
+    for encounter in &campaign.maps[0].locations[0].encounters {
         println!("{}", encounter.description);
 
+        // process npc encounters
         if encounter.actors[0].is_some() {
-            npc_encounter(player, & mut encounter.actors[0].clone().unwrap())
+            npc_encounter(player, &mut encounter.actors[0].clone().unwrap())
         }
+
+        // process puzzle encounters
+        if encounter.puzzles[0].is_some() {
+            puzzle_encounter(player, &encounter.puzzles[0].clone().unwrap())
+        }
+
+        // process encounter result (get loot, xp, gold, etc)
+    }
+}
+
+fn puzzle_encounter(player: &mut Actor, puzzle: &Puzzle) {
+    println!("{}", puzzle.description);
+
+    let mut solutions: Vec<PuzzleSolution> = puzzle.solutions.clone();
+
+    for i in 1..=puzzle.num_attempts {
+        let mut solution_option_num: i64 = 0;
+        for solution in &solutions {
+            solution_option_num = solution_option_num + 1;
+            println!(
+                "({} {}",
+                String::from(solution_option_num.to_string()),
+                solution.description
+            );
+        }
+
+        let mut a = String::new();
+        io::stdin().read_line(&mut a).expect("Failed to read line");
+        let choice: usize = a.parse().unwrap();
+
+        println!("{}", solutions[choice].attempt_description);
+
+        if player.str.base_value + player.str.buff_value > solutions[choice].check_str
+            && player.dex.base_value + player.dex.buff_value > solutions[choice].check_dex
+            && player.con.base_value + player.con.buff_value > solutions[choice].check_con
+            && player.int.base_value + player.int.buff_value > solutions[choice].check_int
+            && player.wis.base_value + player.wis.buff_value > solutions[choice].check_wis
+            && player.cha.base_value + player.cha.buff_value > solutions[choice].check_cha
+            && puzzle_check_items_in_inventory(&player, &solutions[choice].check_inventory)
+        {
+            println!("{}", solutions[choice].success_description);
+            break;
+        } else {
+            println!("{}", solutions[choice].failure_description);
+            solutions.remove(choice);
+        }
+    }
+}
+
+fn puzzle_check_items_in_inventory(player: &Actor, check_inventory: &Vec<InventoryItem>) -> bool {
+    let num_reqd_items = check_inventory.len();
+
+    if num_reqd_items == 0 {
+        return true;
+    }
+
+    let mut num_items = 0;
+
+    for required_item in check_inventory {
+        // doesn't work if we need to have more than one of the same type of item in our inventory
+        // TODO: check for UNIQUE items
+        if player.inventory.contains(required_item) {
+            num_items = num_items + 1;
+        }
+    }
+
+    if num_items >= num_reqd_items {
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -127,19 +201,15 @@ fn get_random_npc() -> Actor {
     return npc;
 }
 
-
-
 // # NPC Encounter
 fn npc_encounter(player: &mut Actor, npc: &mut Actor) {
-
-
     let mut npc_encounter = NpcEncounter {
         turns: 0,
         result: EncounterResult::NoResult,
     };
 
     // ## announce the npc!
-    println!("A {} has appeared!", & npc.name);
+    println!("A {} has appeared!", &npc.name);
     let mut a = String::new();
     io::stdin().read_line(&mut a).expect("Failed to read line");
     print_screen(&player, &npc, &npc_encounter);
