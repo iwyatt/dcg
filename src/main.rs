@@ -10,7 +10,7 @@
 //      - implement post-fight loot process
 // - implement serielization from json files
 // - implement encounter actions (eg design parlay and spell systems) for both player and npc
-//  - implement initiative roll for each round (?)
+// - implement initiative roll for each round (?)
 // - implement spell system
 // - implement deity system
 // - implement loop to listen for keyboard input rather than waiting for enter key
@@ -38,6 +38,8 @@ use rand::Rng;
 
 //load dcg modules
 mod inventory;
+use maps::*;
+mod maps;
 use inventory::*;
 
 mod actors;
@@ -65,17 +67,38 @@ fn main() {
     // # print character attributes
     print_character_status(&player);
 
-    // # NPC Encounter
+    // Start Tutorial Campaign
+    let campaign = maps::create_tutorial_campaign();
+
+    start_tutorial_campaign(& mut player, campaign);
+
+    // Post-Tutorial Campaign: Play Random # NPC Encounters 
     let mut kills = 0;
     while player.hp_current.base_value > 0 {
-        npc_encounter(&mut player);
+        let mut npc : Actor = get_random_npc();
+        npc_encounter(&mut player, &mut npc);
         kills = kills + 1;
         println!("KILLS: {}", kills.to_string());
     }
 }
 
-// # NPC Encounter
-fn npc_encounter(player: &mut Actor) {
+fn start_tutorial_campaign(mut player: & mut Actor, campaign: Campaign){
+    println!("{}, begins the {} campaign!",player.name, campaign.name);
+
+    println!("1st Quest: {}", campaign.quests[0].name);
+
+    println!("Starting your quest in {} at {}", campaign.maps[0].name, campaign.maps[0].locations[0].name);
+
+    for encounter in &campaign.maps[0].locations[0].encounters{
+        println!("{}", encounter.description);
+
+        if encounter.actors[0].is_some() {
+            npc_encounter(player, & mut encounter.actors[0].clone().unwrap())
+        }
+    }
+}
+
+fn get_random_npc() -> Actor {
     // Initialize The Fight
 
     // ## create an enemy to fight
@@ -99,7 +122,16 @@ fn npc_encounter(player: &mut Actor) {
     ];
     let enemy_index = rand::thread_rng().gen_range(0..enemies.len()); //update RNG range as I add functionality
 
-    let mut npc = actors::create_actor(enemies[enemy_index].to_string());
+    let npc = actors::create_actor(enemies[enemy_index].to_string());
+
+    return npc;
+}
+
+
+
+// # NPC Encounter
+fn npc_encounter(player: &mut Actor, npc: &mut Actor) {
+
 
     let mut npc_encounter = NpcEncounter {
         turns: 0,
@@ -107,7 +139,7 @@ fn npc_encounter(player: &mut Actor) {
     };
 
     // ## announce the npc!
-    println!("A {} has appeared!", npc.name);
+    println!("A {} has appeared!", & npc.name);
     let mut a = String::new();
     io::stdin().read_line(&mut a).expect("Failed to read line");
     print_screen(&player, &npc, &npc_encounter);
@@ -117,7 +149,7 @@ fn npc_encounter(player: &mut Actor) {
         // ### print the screen
 
         // ### player turn
-        player_turn(player, &mut npc);
+        player_turn(player, npc);
 
         // check if encounter result conditions have been met
         if player.hp_current.base_value <= 0 {
@@ -136,7 +168,7 @@ fn npc_encounter(player: &mut Actor) {
         //print_screen(&player,&npc, &npc_encounter);
 
         // ### npc turn
-        npc_turn(player, &mut npc);
+        npc_turn(player, npc);
 
         // check if encounter result conditions have been met
         if player.hp_current.base_value <= 0 {
@@ -151,7 +183,7 @@ fn npc_encounter(player: &mut Actor) {
 
         // incrment encounter turns
         npc_encounter.turns = npc_encounter.turns + 1;
-        actors::Buff::update_buff_stack(&mut npc);
+        actors::Buff::update_buff_stack(npc);
 
         //clear screen
         let mut a = String::new();
@@ -161,7 +193,7 @@ fn npc_encounter(player: &mut Actor) {
 
     // ## conclude the encounter
     // TODO: add xp, gold, inventory, congratulate the player, level up, etc)
-    resolve_encounter(player, &mut npc, &mut npc_encounter);
+    resolve_encounter(player, npc, &mut npc_encounter);
 
     print_screen(&player, &npc, &npc_encounter);
 }
@@ -218,6 +250,18 @@ fn print_character_status(player: &Actor) {
         (player.defense.base_value + player.defense.buff_value).to_string()
     );
     //println!("Defense: {}", format!("{}", player.defense.base_value + player.defense.buff_value));
+
+    // print equipment
+    println!("~ ~ ~ EQUIPMENT ~ ~ ~");
+    println!(
+        "Left Hand: {} {} | Right Hand: {} {}",
+        player.slot_left_hand.name_prefix,
+        player.slot_left_hand.name,
+        player.slot_right_hand.name_prefix,
+        player.slot_right_hand.name
+    );
+    println!("Armor: {}", player.slot_armor.name);
+    println!(" ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~");
 
     // print inventory
     println!("~ ~ ~ ~INVENTORY~ ~ ~ ~");
@@ -278,11 +322,26 @@ fn npc_turn(player: &mut Actor, npc: &mut Actor) {
 
 fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
     // TODO: Implement check to make sure actor has a melee weapon
-    println!("{} attacks {} with {} {}!", actor.name, target.name, actor.slot_left_hand.name_prefix, actor.slot_left_hand.name);
+    // TODO: Check if 2h weapon or 2 1h weapons and also print accordingly
+    println!(
+        "{} attacks {} with {} {}!",
+        actor.name, target.name, actor.slot_left_hand.name_prefix, actor.slot_left_hand.name
+    );
 
     // 1. Add up actor attack value total
-    // TODO: add in weapon value here when equipment system is implemented
-    let attack_value = actor.str.base_value + actor.str.buff_value;
+    // DONE: add in weapon value here when equipment system is implemented
+    let attack_value = actor.str.base_value
+        + actor.str.buff_value
+        + if actor.slot_left_hand.is_melee {
+            actor.slot_left_hand.damage_base + actor.slot_left_hand.damage_buff
+        } else {
+            0
+        }
+        + if actor.slot_right_hand.is_melee {
+            actor.slot_right_hand.damage_base + actor.slot_right_hand.damage_buff
+        } else {
+            0
+        };
 
     // 2. get unmitigated damage by subtracting damage mitigation from the attack value
     let mut unmitigated_damage = attack_value
@@ -327,6 +386,11 @@ fn actor_attack_target_melee(actor: &mut Actor, target: &mut Actor) {
 
 fn actor_attack_target_ranged(actor: &mut Actor, target: &mut Actor) {
     // TODO: Implement check to make sure actor has a ranged weapon
+    if actor.slot_left_hand.is_ranged == false && actor.slot_right_hand.is_ranged == false {
+        println!("{} has no ranged weapon! Derp!", actor.name);
+        return;
+    }
+
     println!("{} attacks {} with ranged!", actor.name, target.name);
 
     // 1. Add up actor attack value total
@@ -373,11 +437,6 @@ fn actor_attack_target_ranged(actor: &mut Actor, target: &mut Actor) {
         println!("No damage! Weak!");
     }
 }
-
-// fn npc_action_attack_ranged(player: &mut Actor, npc: &mut Actor) {
-//     println!("{} attacks {} with ranged!", npc.name, player.name);
-//     player.hp_current.base_value = player.hp_current.base_value - npc.dex.base_value;
-// }
 
 // ## Player Turn
 fn player_turn(player: &mut Actor, npc: &mut Actor) {
@@ -447,20 +506,6 @@ fn actor_defend(player: &mut Actor) {
     });
 }
 
-// player input action: attack w/ melee weapon
-// fn player_action_attack_melee(player: &Actor, npc: &mut Actor) {
-//     println!("{} attacks {} with melee!", player.name.trim(), npc.name);
-//     npc.hp_current.base_value = npc.hp_current.base_value - player.str.base_value;
-// }
-
-// player input acton: ranged attack
-// fn player_action_attack_ranged(player: &mut Actor, npc: &mut Actor) {
-//     println!("{} attacks {} with ranged!", player.name, npc.name);
-//     npc.hp_current.base_value = npc.hp_current.base_value - player.dex.base_value;
-// }
-
-// player input action: chant / pray
-// TODO: rename function and parameters to Actor/Target respectively
 fn actor_chant(actor: &mut Actor, target: &mut Actor) {
     println!("{} chants <deity>'s mantra", actor.name);
 

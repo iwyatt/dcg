@@ -1,0 +1,16 @@
+[
+    "Encounters",
+    {
+    "id": 0,
+    "name": "Cave Entrance",
+    "description": "A decsription of a cave entrance",
+    "actors": {},
+    "puzzles": {},
+    "reward_items": {},
+    "reward_xp": 0,
+    "reward_gold": 0,
+    "failure_effect": "",
+    "success_effect": "",
+    "next_encounter_conditions": ""
+    }
+]

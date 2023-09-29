@@ -162,14 +162,7 @@ pub fn create_actor(mut name: String) -> Actor {
             weapon: None,
             armor: None,
         }],
-        slot_armor: Armor {
-            name: String::from("Starting Armor"),
-            armor_base: 0,
-            armor_buff: 0,
-            encumberence_base: 0,
-            encumberence_buff: 0,
-            buffs: Vec::new(),
-        },
+        slot_armor: create_random_armor(get_int_from_seed(&seed, 8)),
 
         slot_left_hand: create_random_1h_weapon(get_int_from_seed(&seed, 6)),
         slot_right_hand: create_random_1h_shield(get_int_from_seed(&seed, 7)),

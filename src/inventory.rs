@@ -1,7 +1,12 @@
 use crate::actors::{self, *};
 use chrono::*;
+use rand::Rng;
 use sha256::digest;
 use std::cmp;
+
+// *************************************************
+// *               INVENTORY                       *
+// *************************************************
 
 #[derive(PartialEq, Clone)]
 pub struct Inventory {
@@ -12,25 +17,13 @@ pub struct Inventory {
 pub struct InventoryItem {
     pub name: String,
     pub weight: i64,
-    //pub item_type: ItemType,
-    //pub consumable : Option<Consumable>,
-    //pub equipable : Option<Equipable>,
     pub weapon: Option<Weapon>,
     pub armor: Option<Armor>,
 }
 
-// #[derive(PartialEq,Debug)]
-// pub struct Consumable {
-//     pub attribute: String,
-//     pub restoration: f64,
-// }
-
-// #[derive(PartialEq, Debug, Clone)]
-// pub enum EngagementType {
-//     Melee,
-//     Ranged,
-//     Chant,
-// }
+// *************************************************
+// *               WEAPONS                         *
+// *************************************************
 
 #[derive(PartialEq, Clone)]
 pub struct Weapon {
@@ -61,7 +54,7 @@ pub struct Weapon {
 }
 
 pub fn create_random_1h_weapon(index: i64) -> Weapon {
-    let mut weapon = match index {
+    let weapon = match index {
         0 => create_named_weapon(&String::from("Cane"), true, false, true, false, false, 2),
         1 => create_named_weapon(
             &String::from("Stiletto"),
@@ -150,7 +143,7 @@ pub fn create_random_1h_weapon(index: i64) -> Weapon {
 }
 
 pub fn create_random_1h_shield(index: i64) -> Weapon {
-    let mut weapon = match index {
+    let weapon = match index {
         0 | 1 => create_named_weapon(
             &String::from("Heater shield"),
             false,
@@ -273,7 +266,7 @@ pub fn create_named_weapon(
     is_shield: bool,
     encumberence_base: i64,
 ) -> Weapon {
-    let seed = digest(name);
+    // let seed = digest(name); # rmeoving since all weapons would get randomized to exactly same value since their name doesnt change
 
     let mut weapon = Weapon {
         name: String::from(name),
@@ -286,23 +279,23 @@ pub fn create_named_weapon(
         encumberence_buff: 0,
 
         damage_base: if is_melee {
-            actors::get_int_from_seed(&seed, 0)
+            rand::thread_rng().gen_range(1..=4)
         } else {
             0
         },
         damage_buff: 0,
         armor_base: if is_shield {
-            actors::get_int_from_seed(&seed, 7)
+            rand::thread_rng().gen_range(1..=3)
         } else {
             0
         },
         armor_buff: 0,
-        speed_base: actors::get_int_from_seed(&seed, 2),
+        speed_base: (rand::thread_rng().gen_range(1..=18) / 100),
         speed_buff: 0,
-        str_scaling: (100 / (actors::get_int_from_seed(&seed, 3) + 4) / 100) as f64,
-        dex_scaling: (100 / (actors::get_int_from_seed(&seed, 4) + 4) / 100) as f64,
-        int_scaling: (100 / (actors::get_int_from_seed(&seed, 5) + 4) / 100) as f64,
-        wis_scaling: (100 / (actors::get_int_from_seed(&seed, 6) + 4) / 100) as f64,
+        str_scaling: (rand::thread_rng().gen_range(1..=25) / 100) as f64,
+        dex_scaling: (rand::thread_rng().gen_range(1..=25) / 100) as f64,
+        int_scaling: (rand::thread_rng().gen_range(1..=25) / 100) as f64,
+        wis_scaling: (rand::thread_rng().gen_range(1..=25) / 100) as f64,
         name_prefix: String::from(""),
 
         buffs: Vec::new(),
@@ -311,10 +304,11 @@ pub fn create_named_weapon(
     if weapon.is_two_handed {
         weapon.damage_base = (weapon.damage_base as f64 * 1.25) as i64;
         weapon.speed_base = (weapon.speed_base as f64 * 0.50) as i64;
-        weapon.encumberence_base = (weapon.encumberence_base as f64 * 1.5) as i64;
+        weapon.encumberence_base = (weapon.encumberence_base as f64 * 1.25) as i64;
     };
 
-    weapon.name_prefix = match weapon.damage_base {
+
+    weapon.name_prefix = match if weapon.is_shield {weapon.armor_base} else {weapon.damage_base} {
         1 => String::from("Begger's"),
         2 => String::from("Slave's"),
         3 => String::from("Serf's"),
@@ -337,15 +331,81 @@ pub fn create_named_weapon(
     return weapon;
 }
 
+// *************************************************
+// *               ARMOR                           *
+// *************************************************
+
 #[derive(PartialEq, Clone)]
 pub struct Armor {
     pub name: String,
+    pub name_prefix: String,
     pub armor_base: i64,
     pub armor_buff: i64,
     pub encumberence_base: i64,
     pub encumberence_buff: i64,
     pub buffs: Vec<actors::Buff>,
 }
+
+pub fn create_named_armor(name: &String, encumberence_base: i64) -> Armor {
+    // let seed = digest(name); # rmeoving since all armor would get randomized to exactly same value since their name doesnt change
+    let index = rand::thread_rng().gen_range(1..=3);
+
+    let mut armor = Armor {
+        name: String::from(name),
+        name_prefix: String::from(""),
+        armor_base: index,
+        armor_buff: 0,
+        encumberence_base: encumberence_base,
+        encumberence_buff: 0,
+        buffs: Vec::new(),
+    };
+
+    armor.name_prefix = match armor.armor_base {
+        1 => String::from("Begger's"),
+        2 => String::from("Slave's"),
+        3 => String::from("Serf's"),
+        4 => String::from("Vagabond's"),
+        5 => String::from("Peasant's"),
+        6 => String::from("Farmer's"),
+        7 => String::from("Yeoman's"),
+        8 => String::from("Knight's"),
+        9 => String::from("Champion's"),
+        10 => String::from("Thane's"),
+        11 => String::from("Castellan's"),
+        12 => String::from("Duke's"),
+        13 => String::from("Prince's"),
+        14 => String::from("Queen's"),
+        15 => String::from("Tsarina's"),
+        16.. => String::from("Demi-God's"),
+        _ => String::from("Jester's"),
+    };
+
+    return armor;
+}
+
+pub fn create_random_armor(index: i64) -> Armor {
+    let armor = match index {
+        1 | 2 => create_named_armor(&String::from("Tunic"), 3),
+        3 | 4 => create_named_armor(&String::from("Lamellar"), 4),
+        5 | 6 => create_named_armor(&String::from("Gambeson"), 5),
+        7 | 8 => create_named_armor(&String::from("Studded Leather"), 6),
+        9 => create_named_armor(&String::from("Brigandine"), 7),
+        10 => create_named_armor(&String::from("Chainmail"), 8),
+        11 => create_named_armor(&String::from("Scale Mail"), 9),
+        12 => create_named_armor(&String::from("Half Plate"), 10),
+        13 => create_named_armor(&String::from("Kai Jia"), 11),
+        14 => create_named_armor(&String::from("Yoroi"), 12),
+        15 => create_named_armor(&String::from("Plate Armor"), 13),
+        16 => create_named_armor(&String::from("Jousting Armor"), 14),
+        _ => create_named_armor(&String::from("Motley"), 2),
+    };
+
+    return armor;
+}
+
+// *************************************************
+// *               CONSUMABLES                     *
+// *************************************************
 
 pub trait Use {
     fn use_consumable(character: &mut Actor, item_name: &String) {}
